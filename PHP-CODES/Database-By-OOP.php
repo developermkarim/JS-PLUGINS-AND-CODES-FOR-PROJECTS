@@ -16,6 +16,7 @@ public function __construct(){
         // Check connection
         if ($this->mysqli->connect_errno > 0){
           array_push($this->result,$this->mysqli->connect_error);
+          throw new Exception("Database connection error: " . $this->mysqli->connect_error);
           return false; // Problem selecting database return FALSE
         }
     }
@@ -162,6 +163,7 @@ if ($query) {
 }
 
 //  value store in this->result based on SQL command
+
 public function sql($sql)
 {
   $this->myquery = $sql;
@@ -182,6 +184,7 @@ public function sql($sql)
                 case 'SELECT':
                 array_push($this->result,$query->fetch_all(MYSQLI_ASSOC));
         }
+        
         return true;
   }
   
@@ -190,7 +193,78 @@ public function sql($sql)
     return false;
   }
 
-} 
+}
+
+    // Function to get the last inserted ID
+    public function getLastInsertId() {
+        return $this->mysqli->insert_id;
+    }
+
+    // Function to get the number of affected rows in the last query
+    public function getAffectedRows() {
+        return $this->mysqli->affected_rows;
+    }
+
+
+   // FUNCTION to show pagination
+   public function pagination($table, $join = null, $where = null, $limit){
+    // Check to see if table exists
+    if($this->tableExists($table)){
+        //If no limit is set then no pagination is available
+        if( $limit != null){
+            // select count() query for pagination
+      $sql = "SELECT COUNT(*) FROM $table";
+      if($where != null){
+            $sql .= " WHERE $where";
+              }
+              if($join != null){
+                  $sql .= ' JOIN '.$join;
+              }
+              // echo $sql; exit;
+      $query = $this->mysqli->query($sql);
+      
+      $total_record = $query->fetch_array();
+      $total_record = $total_record[0];
+
+      $total_page = ceil( $total_record / $limit);
+
+      $url = basename($_SERVER['PHP_SELF']);
+
+          if(isset($_GET["page"])){
+                  $page = $_GET["page"];
+                  }
+                  else{
+                    $page = 1;
+                  }
+
+      // show pagination
+      $output =   "<ul class='pagination'>";
+      if($page>1){
+          $output .="<li><a href='$url?page=".($page-1)."' class='page-link'>Prev</a></li>";
+      }
+      if($total_record > $limit){
+        for ($i=1; $i<=$total_page ; $i++) {
+          if($i == $page){
+             $cls = "class='active'";
+          }else{
+             $cls = '';
+          }
+            $output .="<li $cls><a class='page-link' href='$url?page=$i'>$i</a></li>";
+        }
+      }
+      if($total_page>$page){
+        $output .="<li> <a class='page-link' href='$url?page=".($page+1)."'>Next</a></li>";
+      }
+      $output .= "</ul>";
+
+      return $output;
+        }
+
+    }else{
+      return false; // Table does not exist
+    }
+
+}
 
     /*  Function Method to check whether table exist or not in database */
     private function tableExists($table)
@@ -232,6 +306,45 @@ function getResult(){
 }
 
 /* this Function is for Input Validattion */
+  // Function to validate a form
+  public function validateForm($formData, $validationRules) {
+    $errors = array();
+
+    foreach ($validationRules as $fieldName => $rules) {
+        foreach ($rules as $rule) {
+            switch ($rule) {
+                case 'required':
+                    if (empty($formData[$fieldName])) {
+                        $errors[$fieldName] = ucfirst($fieldName) . ' is required.';
+                    }
+                    break;
+                case 'email':
+                    if (!empty($formData[$fieldName]) && !filter_var($formData[$fieldName], FILTER_VALIDATE_EMAIL)) {
+                        $errors[$fieldName] = 'Invalid ' . ucfirst($fieldName) . ' format.';
+                    }
+                    break;
+                case 'phone':
+                    if (!empty($formData[$fieldName]) && !preg_match('/^\d{10}$/', $formData[$fieldName])) {
+                        $errors[$fieldName] = 'Invalid ' . ucfirst($fieldName) . ' format.';
+                    }
+                    break;
+                case 'username':
+                    if (!empty($formData[$fieldName]) && strlen($formData[$fieldName]) < 6) {
+                        $errors[$fieldName] = 'Username must be at least 6 characters.';
+                    }
+                    break;
+                case 'address':
+                    if (empty($formData[$fieldName])) {
+                        $errors[$fieldName] = 'Address is required.';
+                    }
+                    break;
+                // Add more validation rules as needed
+            }
+        }
+    }
+
+    return $errors;
+}
 
 /* Destruct Method to destroy the mysqli function of construct method */
 
@@ -248,7 +361,21 @@ function __destruct()
     }
 }
 
+
+   // Function to close the database connection,  With this method in your class, you can now explicitly close the database connection in your code by calling $db->closeConnection()
+   public function closeConnection() {
+    if ($this->conn) {
+        if ($this->mysqli->close()) {
+            $this->conn = false;
+            return true;
+        } else {
+            return false;
+        }
+    }
+}
+
 };
+
 
 
 /*  This Database class for test */
