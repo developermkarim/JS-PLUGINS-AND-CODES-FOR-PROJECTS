@@ -283,7 +283,7 @@ OR
         default:
             return '/';
     }
-    
+
     // Add similar conditions for other roles
 }
 
@@ -297,8 +297,17 @@ Modify `AuthenticatedSessionController.php` to redirect users based on their rol
     {
         $request->authenticate();
 
+    /* This is for Just showing the Login Username  */
+        $id = Auth::user()->id;
+        $adminData = User::find($id);
+        $username = $adminData->name;
+
         $request->session()->regenerate();
 
+        $notification = [
+            'message' => "User $username Login Successfully",
+            'alert-type' => 'info',
+        ];
 /*         return redirect()->intended(RouteServiceProvider::HOME); */
         $url = '';
         if ($request->user()->role === 'admin') {
@@ -308,7 +317,7 @@ Modify `AuthenticatedSessionController.php` to redirect users based on their rol
         }elseif ($request->user()->role  === 'user') {
             $url = 'user/dashboard';
         }
-        return redirect()->intended($url);
+        return redirect()->intended($url)->with($notification);
     }
 ```
 
@@ -379,3 +388,99 @@ Now, users will be redirected to their respective dashboards upon login. Unautho
 - Consider using a package like Spatie Laravel Permission if your requirements become more complex.
 
 This guide should help you create a professional role-wise login and dashboard system in Laravel using Laravel Breeze. Customize it based on your specific needs.
+
+## Separate Login Page For Different Role
+---
+Certainly! To have separate login pages for users and admins and to handle login attempts appropriately, you can customize the login process in Laravel. Here's how you can achieve this:
+
+### Step 1: Create Separate Login Controllers
+
+Create separate controllers for user and admin logins:
+
+```bash
+php artisan make:controller UserLoginController
+php artisan make:controller AdminLoginController
+```
+
+### Step 2: Update Routes
+
+In your `web.php` file, update the routes to use the appropriate controllers for user and admin logins:
+
+```php
+use App\Http\Controllers\UserLoginController;
+use App\Http\Controllers\AdminLoginController;
+
+Route::middleware('guest')->group(function () {
+    Route::view('/user/login', 'auth.login', ['url' => 'user'])->name('user.login');
+    Route::post('/user/login', [UserLoginController::class, 'login']);
+
+    Route::view('/admin/login', 'auth.login', ['url' => 'admin'])->name('admin.login');
+    Route::post('/admin/login', [AdminLoginController::class, 'login']);
+});
+```
+
+### Step 3: Customize Login Views
+
+Update your login views (located in `resources/views/auth/login.blade.php`) to include a hidden field indicating whether it's a user or admin login:
+
+```html
+<form method="POST" action="{{ url("$url/login") }}">
+    @csrf
+
+    <input type="hidden" name="user_type" value="{{ $url }}">
+
+    <!-- Your other form fields -->
+
+    <button type="submit">
+        {{ __('Login') }}
+    </button>
+</form>
+```
+
+### Step 4: Update Login Controllers
+
+In your `UserLoginController.php` and `AdminLoginController.php`, customize the login logic:
+
+```php
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+
+class UserLoginController extends Controller
+{
+    // Your existing code
+
+    public function login(Request $request)
+    {
+        $this->validate($request, [
+            // Your validation rules
+        ]);
+
+        $credentials = $request->only('email', 'password');
+
+        if (Auth::attempt($credentials)) {
+            if ($request->input('user_type') === 'user') {
+                return redirect()->route('user.dashboard');
+            } else {
+                Auth::logout();
+                return redirect()->route('user.login')->with('error', 'Invalid login credentials for admin.');
+            }
+        }
+
+        return redirect()->route('user.login')->with('error', 'Invalid login credentials.');
+    }
+}
+```
+
+Repeat a similar process for the `AdminLoginController.php`.
+
+### Step 5: Additional Configuration
+
+Make sure your `UserLoginController` and `AdminLoginController` extend `AuthController` or implement necessary login traits based on your Laravel version.
+
+### Best Practices:
+
+- Always validate and sanitize user inputs.
+- Use Laravel's built-in features for authentication.
+- Keep your code organized and follow Laravel conventions.
+
+This setup ensures that admins attempting to log in through the user login page receive an appropriate error message, and users are redirected to their dashboard after a successful login. Customize the logic as needed for your application.
