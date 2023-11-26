@@ -64,6 +64,13 @@ Certainly! Below is a complete example of how you can use jQuery AJAX with Larav
         console.log(delete_id);
 
         // var url = "{{ url('/delete/each-multi-image') }}" + '/' + delete_id;
+        /* 
+        
+      var concetinateUrl =  "{{ route('property.thrash',['pid'=>'']) }}"+ pid;
+    var templateUsingUrl = `{{ route('property.thrash',['pid'=>'']) }}${property_id}`;
+
+    console.log('concetinate url is ' + concetinateUrl + 'template url is ' + templateUsingUrl);
+         */
 
         var url = "{{ route('delete.each.multi.image', ['id' => ':id']) }}";
         url = url.replace(':id', delete_id);
